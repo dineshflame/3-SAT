@@ -1,0 +1,198 @@
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <cctype>
+#include <string>
+#include <math.h>
+#include <chrono>
+#define MIN_VARS 1
+#define MAX_VARS 4
+#define MIN_CLAUSES 1
+#define MAX_CLAUSES 5
+using namespace std;
+class clause
+{
+private:
+	int variables[MAX_VARS];
+	int size; //represents the number of variables in this clause
+public:
+	clause()
+	{
+		size = 0;
+	}
+	void setVariable(int i, int var) //set the variable i in the clause to specified one
+	{
+		variables[i] = var;
+	}
+	void setSize(int s) // set the number of variables in this clause
+	{
+		size = s;
+	}
+
+	void print() //prints the clause
+	{
+		cout << " ( ";
+		for (int i = 0; i < size; i++)
+		{
+			if (i != 0)
+				cout << " v ";
+
+			if (variables[i] < 0)
+				cout << "~" << "x" << -variables[i];
+			else
+				cout << "x" << variables[i];
+		}
+		cout << " ) ";
+	}
+
+	// the truth values ... are passed and the clause is evaluated based on these, the 1st location of truthValues is unused
+	bool evaluate(bool truthValues[])
+	{
+		int idx;
+		bool val = false, current;
+
+		for (int i = 0; i < size; i++)
+		{
+			idx = variables[i];
+			if (variables[i] < 0)
+			{
+				idx = -idx; //conver to +ve and negate the truth value
+				current = !truthValues[idx];
+			}
+			else
+				current = truthValues[idx];
+
+			val = val || current;
+		}
+		return val;
+	}
+};
+//generates variables for this clause and sets its size,. expr_var_used represents the variables that are used in the final expression
+//after generating the variables, these variables are set in expr_var_used
+void generateVars(clause &c, int expr_var_used[], int numVars);
+void incrementTruthValues(bool *truth_values);
+//bool getBoolInput(string prompt); //used to prompt the user for a boolean input and validate it
+int main()
+{
+
+	int numClauses, numVars;
+
+	srand(time(0));
+
+	auto start = std::chrono::high_resolution_clock::now(); // Record start time
+
+	int clause_range = MAX_CLAUSES - MIN_CLAUSES + 1;
+	numClauses = MAX_CLAUSES;
+	//MIN_CLAUSES + (rand() % clause_range); //generates random number between MIN_CLAUSES to MAX_CLAUSES
+
+	int var_range = MAX_VARS - MIN_VARS + 1;
+	numVars = 3;
+	//MIN_VARS + (rand() % var_range); //generates random number between MIN_VARS to MAX_VARS
+
+	//numVars is the number of variables that will be in each clause
+
+	bool truth_values[MAX_VARS + 1]; //index 0 is unsed, 1 to MAX_VARS represnt the truth values of x1, x2,.. etc
+	int expr_used_vars[MAX_VARS + 1] = { 0 };
+
+	int COMB_VALUE = pow(2, MAX_VARS);
+	bool *combination = new bool[COMB_VALUE];
+
+	clause *logicexpr = new clause[numClauses];
+
+	for (int i = 0; i < numClauses; i++)
+	{
+		generateVars(logicexpr[i], expr_used_vars, numVars); //generate the variables for this clause
+	}
+
+	//print the generated logic expression
+	for (int i = 0; i < numClauses; i++)
+	{
+		if (i != 0)
+			cout << " ^ ";
+		logicexpr[i].print();
+	}
+	
+	cout << endl << endl;
+
+	for (int i = 1; i < MAX_VARS + 1; i++) {
+		truth_values[i] = 0;
+	}
+
+	for (int i = 0; i < COMB_VALUE; i++) {
+
+		bool expr_value = true;
+		int j;
+		for (j = 0; j < numClauses; j++)
+		{
+			if (logicexpr[j].evaluate(truth_values) != true) // this clause did not evaluate to true? stop then
+			{
+				expr_value = false;
+				break;
+			}
+		}
+
+		combination[i] = expr_value;
+
+		incrementTruthValues(truth_values); // Increment the truth values
+	}
+
+	string comb = "";
+	for (int i = 0; i < COMB_VALUE; i++) {
+		 
+		if (combination[i] == true){
+			comb.append("1 ");}
+		else {
+
+			comb.append("0 ");
+                }
+	}
+	cout << comb << endl;
+	auto finish = std::chrono::high_resolution_clock::now(); // Record end time
+	std::chrono::duration<double> elapsed = finish - start; 
+	std::cout << "Elapsed time: " << elapsed.count() << " s\n";
+}
+
+
+void incrementTruthValues(bool *truth_values) {
+	bool addOne = false;
+	for (int i = 1; i < MAX_VARS + 1; i++) {
+		if (i == 1) {
+			if (truth_values[i] == true)
+				addOne = true;
+			truth_values[i] = !truth_values[i];
+		}
+		else if (addOne == true) {
+			if (truth_values[i] == false)
+				addOne = false;
+			truth_values[i] = !truth_values[i];
+		}
+	}
+}
+
+void generateVars(clause &c, int expr_used_vars[], int numVars)
+{
+	int usedVars[MAX_VARS + 1] = { 0 }; //if 0, corresponding var was not used in the clause, if 1 , the corresponindg var was used in the clause
+
+	int var;
+
+	c.setSize(numVars);
+	for (int i = 0; i < numVars; )
+	{
+		var = 1 + rand() % MAX_VARS; // generate a random variable
+		if (usedVars[var] == 1)//if the variable is already used, then continut to generate again
+			continue;
+		else
+		{
+			int negate = rand() % 2;
+
+			if (negate == 0)
+				c.setVariable(i, var);
+			else
+				c.setVariable(i, -var);
+
+			usedVars[var] = 1; //mark the variable number as used, so that we don't reuse the same variable in the clause
+			expr_used_vars[var] = 1; //mark the variable number that was used, so we can later ask user's input
+			i++;
+		}
+	}
+}
